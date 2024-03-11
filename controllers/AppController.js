@@ -1,7 +1,6 @@
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 
-
 const AppController = {
   async getStatus(req, res) {
     const redisIsAlive = await redisClient.isAlive();
