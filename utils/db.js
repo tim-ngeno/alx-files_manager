@@ -19,10 +19,17 @@ class DBClient {
     });
   }
 
+  // Get this mongodb client instance
+  getMongoClient() {
+    return this.client;
+  }
+
+  // Check if the client is alive
   isAlive() {
     return !!this.client && this.client.isConnected();
   }
 
+  // Get the number of users
   async nbUsers() {
     if (!this.client.isConnected()) return 0;
 
@@ -31,6 +38,7 @@ class DBClient {
     return usersCollection.countDocuments();
   }
 
+  // Get the number of files
   async nbFiles() {
     if (!this.client.isConnected()) return 0;
 
