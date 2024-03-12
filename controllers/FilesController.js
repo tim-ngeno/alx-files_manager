@@ -6,7 +6,7 @@ import redisClient from '../utils/redis';
 const FilesController = {
   async postUpload(req, res) {
     // Get mongodb instance
-    const mongoClient = dbClient.getMongoClient();
+    const mongoClient = await dbClient.getMongoClient();
     const filesCollection = mongoClient.db().collection('files');
 
     // retrieve token
@@ -40,7 +40,7 @@ const FilesController = {
 
     // If parentId is set, check if parent exists and is a folder
     if (parentId !== 0) {
-      const parentFile = filesCollection.findOne({ _id: parentId });
+      const parentFile = await filesCollection.findOne({ _id: parentId });
       if (!parentFile || parentFile.type !== 'folder') {
         return res.status(400)
           .json({ error: 'Parent not found or is not a folder' });
@@ -91,14 +91,46 @@ const FilesController = {
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
     }
-    const mongoClient = dbClient.getMongoClient();
-    const usersCollection = mongoClient.db().collection('users');
-    const user = usersCollection.findOne({ _id: userId });
 
-    if (!user.file) {
+    const fileId = req.params.id;
+
+    const mongoClient = await dbClient.getMongoClient();
+    const filesCollection = mongoClient.db().collection('files');
+    const file = await filesCollection.findOne({ _id: fileId, userId });
+
+    if (!file) {
       res.status(404).json({ error: 'Not found' });
     }
-    res.status(200).json({ user });
+    res.status(200).json(file);
+  },
+
+  // Retrieves all user's fle documents forparentId with pagination
+  async getAll(req, res) {
+    const token = req.headers['x-token'];
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const redisKey = `auth_${token}`;
+    const userId = redisClient.get(redisKey);
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const parentId = parseInt(req.query.parentId, 10) || 0;
+    const page = parseInt(req.query.page, 10) || 0;
+    const limit = 20;
+    const skip = page * limit;
+
+    const mongoClient = await dbClient.getMongoClient();
+    const filesCollection = mongoClient.db().collection('files');
+    const files = await filesCollection
+      .find({ parentId, userId })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+
+    return res.status(200).json(files);
   },
 };
 
