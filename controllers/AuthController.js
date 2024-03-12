@@ -18,10 +18,11 @@ const AuthController = {
     const [email, password] = decodedCredentials.split(':');
 
     // Get mongodb instance
-    const mongoClient = dbClient.getMongoClient();
+    const mongoClient = await dbClient.getMongoClient();
     const usersCollection = mongoClient.db().collection('users');
 
-    const user = usersCollection.findOne({ email, password: sha1(password) });
+    const user = await usersCollection
+      .findOne({ email, password: sha1(password) });
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
