@@ -15,7 +15,7 @@ const UsersController = {
     }
 
     // Check if email already exists in the database
-    const mongoClient = dbClient.getMongoClient();
+    const mongoClient = await dbClient.getMongoClient();
     const usersCollection = mongoClient.db().collection('users');
     const existingUser = await usersCollection.findOne({ email });
     if (existingUser) {
@@ -53,7 +53,7 @@ const UsersController = {
     const mongoClient = await dbClient.getMongoClient();
     const usersCollection = mongoClient.db().collection('users');
 
-    const user = usersCollection.findOne({ _id: userId });
+    const user = await usersCollection.findOne({ _id: userId });
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
