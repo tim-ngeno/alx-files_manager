@@ -106,7 +106,7 @@ const FilesController = {
   },
 
   // Retrieves all user's fle documents forparentId with pagination
-  async getAll(req, res) {
+  async getIndex(req, res) {
     const token = req.headers['x-token'];
     if (!token) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -134,9 +134,48 @@ const FilesController = {
     return res.status(200).json(files);
   },
 
+  async getFile(req, res) {
+    const fileId = req.params.id;
+
+    const mongoClient = await dbClient.getMongoClient();
+    const filesCollection = mongoClient.db().collection('files');
+
+    // Find the file document based on the ID
+    const file = await filesCollection.findOne({ _id: fileId });
+    if (!file) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    // Check if the file document is public or if the user is authenticated
+    const token = req.headers['x-token'];
+    const userId = await redisClient.get(`auth_${token}`);
+
+    if (!file.isPublic && (!userId || file.userId !== userId)) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    // Check if the file type is a folder
+    if (file.type === 'folder') {
+      return res.status(400).json({ error: "A folder doesn't have content" });
+    }
+
+    // Check if the file is locally present
+    const filePath = `${process.env.FOLDER_PATH}/${file.localPath}`;
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    // Get the MIME-type based on the name of the file
+    const mimeType = mimeTypes.lookup(file.name);
+
+    // Return the content of the file with the correct MIME-type
+    res.setHeader('Content-Type', mimeType);
+    return res.sendFile(filePath);
+  },
+
   async putPublish(req, res) {
     const token = req.headers['x-token'];
-    if(!token) {
+    if (!token) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -192,45 +231,6 @@ const FilesController = {
 
     // Return the updated file document
     return res.status(200).json(file);
-  },
-
-  async getFile(req, res) {
-    const fileId = req.params.id;
-
-    const mongoClient = await dbClient.getMongoClient();
-    const filesCollection = mongoClient.db().collection('files');
-
-    // Find the file document based on the ID
-    const file = await filesCollection.findOne({ _id: fileId });
-    if (!file) {
-      return res.status(404).json({ error: 'Not found' });
-    }
-
-    // Check if the file document is public or if the user is authenticated
-    const token = req.headers['x-token'];
-    const userId = await redisClient.get(`auth_${token}`);
-
-    if (!file.isPublic && (!userId || file.userId !== userId)) {
-      return res.status(404).json({ error: 'Not found' });
-    }
-
-    // Check if the file type is a folder
-    if (file.type === 'folder') {
-      return res.status(400).json({ error: "A folder doesn't have content" });
-    }
-
-    // Check if the file is locally present
-    const filePath = `${process.env.FOLDER_PATH}/${file.localPath}`;
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Not found' });
-    }
-
-    // Get the MIME-type based on the name of the file
-    const mimeType = mimeTypes.lookup(file.name);
-
-    // Return the content of the file with the correct MIME-type
-    res.setHeader('Content-Type', mimeType);
-    return res.sendFile(filePath);
   },
 };
 
