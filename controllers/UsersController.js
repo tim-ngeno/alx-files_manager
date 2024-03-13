@@ -1,6 +1,9 @@
 import sha1 from 'sha1';
+import Bull from 'bull';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
+
+const userQueue = new Bull('userQueue');
 
 const UsersController = {
   async postNew(req, res) {
@@ -33,6 +36,9 @@ const UsersController = {
 
     // Insert the new user into the database
     await usersCollection.insertOne(newUser);
+
+    // Welcome new user
+    await userQueue.add({ userId: newUser._id });
 
     // Respond with the new user
     return res.status(201).json({

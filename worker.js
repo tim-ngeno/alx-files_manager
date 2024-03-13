@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import dbClient from './utils/db';
 
 const fileQueue = new Bull('fileQueue');
+const userQueue = new Bull('userQueue');
 
 fileQueue.process(async (job) => {
   const { userId, fileId } = job.data;
