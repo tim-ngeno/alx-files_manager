@@ -1,6 +1,7 @@
 import { uuid } from 'uuidv4';
 import fs from 'fs';
 import mimeTypes from 'mime-types';
+import { fileQueue } from '../worker';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 
@@ -9,6 +10,7 @@ const FilesController = {
     // Get mongodb instance
     const mongoClient = await dbClient.getMongoClient();
     const filesCollection = mongoClient.db().collection('files');
+    const fileId = req.params.id;
 
     // retrieve token
     const token = req.headers['X-Token'];
@@ -78,6 +80,7 @@ const FilesController = {
     };
     const insertedFile = await filesCollection.insertOne(fileWithLocalPath);
 
+    fileQueue.add({ userId, fileId });
     return res.status(201).json(insertedFile.ops[0]);
   },
 
@@ -136,6 +139,7 @@ const FilesController = {
 
   async getFile(req, res) {
     const fileId = req.params.id;
+    const { size } = req.query;
 
     const mongoClient = await dbClient.getMongoClient();
     const filesCollection = mongoClient.db().collection('files');
@@ -171,6 +175,18 @@ const FilesController = {
     // Return the content of the file with the correct MIME-type
     res.setHeader('Content-Type', mimeType);
     return res.sendFile(filePath);
+
+    // Construct the filename withthe size suffix
+    const filename = `${file.localPath}_${size}`;
+
+    // Check if the file exists
+    if (!fs.existsSync(filename)) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    // Return the content of the file with the correct MIME-type
+    res.setHeader('Content-Type', mimeType);
+    return res.sendFile(filename);
   },
 
   async putPublish(req, res) {
